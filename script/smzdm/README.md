@@ -10,6 +10,8 @@ Surge
 Surge推荐使用模块进行部署，
 模块地址：https://raw.githubusercontent.com/touzi/touziScript/main/script/smzdm/smzdm_checkin.sgmodule
 
+去广告地址: https://raw.githubusercontent.com/touzi/touziScript/main/script/smzdm/smzdm_remove_ads.sgmodule
+
 使用说明
 Web端获取Cookie：
 使用手机浏览器访问 https://zhiyou.smzdm.com/ 进行一次登录，通常会显示获取cookie成功。
