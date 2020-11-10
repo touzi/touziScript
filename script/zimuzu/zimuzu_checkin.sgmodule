@@ -8,4 +8,4 @@
 字幕组app_获取cookie = http-request ^http:\/\/ios.zmzapi.com\/index.php.*a=(mobile_)?login script-path=https://raw.githubusercontent.com/chavyleung/scripts/master/zimuzu/zimuzu.cookie.js
 
 [MITM]
-*.rrys2020.com, ios.zmzapi.com
+hostname = %APPEND% *.rrys2020.com, ios.zmzapi.com
