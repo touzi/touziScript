@@ -1,0 +1,12 @@
+#!name=美团外卖
+#!desc=美团外卖每日自动签到
+#!system=ios
+
+[Script]
+美团外卖——签到 = type=cron,cronexp=22 10 * * *,script-path=https://raw.githubusercontent.com/chavyleung/scripts/master/wmmeituan/wmmeituan.js
+美团外卖_获取Cookie = type=http-request,script-path=https://raw.githubusercontent.com/chavyleung/scripts/master/wmmeituan/wmmeituan.cookie.js,pattern=^https:\/\/promotion.waimai.meituan.com\/playcenter\/signIn\/entry
+美团外卖1_获取Cookie = type=http-request,script-path=https://raw.githubusercontent.com/chavyleung/scripts/master/wmmeituan/wmmeituan.cookie.js,requires-body=true,pattern=^https:\/\/promotion.waimai.meituan.com\/playcenter\/signIn\/doaction
+
+
+[MITM]
+hostname = %APPEND% promotion.waimai.meituan.com
