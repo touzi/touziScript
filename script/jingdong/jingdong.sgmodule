@@ -1,5 +1,5 @@
 #!name=京东
-#!desc=京东多合一每日自动签到
+#!desc=京东多合一每日自动签到 bean.m.jd.com/bean/signIndex.action
 #!system=ios
 
 [Script]
