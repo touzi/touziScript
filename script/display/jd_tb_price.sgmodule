@@ -6,7 +6,6 @@
 # 淘宝历史价格
 IP-CIDR,203.119.144.0/21,REJECT,no-resolve
 IP-CIDR,203.119.175.0/24,REJECT,no-resolve
-FINAL,Domestic,dns-failed
 
 [Script]
 ## 京东淘宝比价新
