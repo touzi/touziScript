@@ -6,9 +6,6 @@
 # > 京东  去启动广告
 URL-REGEX,^https?:\/\/api\.m\.jd\.com\/client\.action\?functionId=start$,REJECT-TINYGIF
 
-# anti-ad
-DOMAIN-SET,https://raw.githubusercontent.com/privacy-protection-tools/anti-AD/master/anti-ad-surge2.txt,REJECT
-
 [Script]
 # > 微博去广告 #yichahucha  hostname=api.weibo.cn, mapi.weibo.com, *.uve.weibo.com
 # 国际版 hostname=weibointl.api.weibo.cn
