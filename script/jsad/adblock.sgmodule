@@ -1,5 +1,5 @@
-#!name=AD去除广告
-#!desc=去广告
+#!name=touzi Custom de-advertising
+#!desc=https://github.com/touzi/touziScript/edit/main/script/jsad/adblock.sgmodule
 #!system=ios
 
 [Rule]
@@ -7,7 +7,7 @@
 URL-REGEX,^https?:\/\/api\.m\.jd\.com\/client\.action\?functionId=start$,REJECT-TINYGIF
 
 # anti-ad
-https://raw.githubusercontent.com/privacy-protection-tools/anti-AD/master/anti-ad-surge2.txt
+DOMAIN-SET,https://raw.githubusercontent.com/privacy-protection-tools/anti-AD/master/anti-ad-surge2.txt,REJECT
 
 [Script]
 # > 微博去广告 #yichahucha  hostname=api.weibo.cn, mapi.weibo.com, *.uve.weibo.com
