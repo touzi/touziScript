@@ -3,8 +3,8 @@
 #!system=ios
 
 [Script]
-飞客茶馆_签到 = type=cron,cronexp=21 10 * * *,script-path=https://raw.githubusercontent.com/chavyleung/scripts/master/flyertea/flyertea.js
-飞客茶馆_获取cookie = type=http-request,script-path=https://raw.githubusercontent.com/chavyleung/scripts/master/flyertea/flyertea.cookie.js,pattern=^https:\/\/www\.flyertea\.com\/source\/plugin\/mobile\/mobile\.php\?module=getdata&.*
+http-request ^https:\/\/www\.flyert\.com\/source\/plugin\/mobile\/mobile\.php\?module=getdata&.* script-path=https://raw.githubusercontent.com/chavyleung/scripts/master/flyertea/flyertea.cookie.js
+cron "21 10 * * *" script-path=https://raw.githubusercontent.com/chavyleung/scripts/master/flyertea/flyertea.js
 
 [MITM]
-hostname = %APPEND% www.flyertea.com
+hostname = %APPEND% www.flyertea.com, www.flyert.com
