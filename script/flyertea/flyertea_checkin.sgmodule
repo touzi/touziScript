@@ -7,4 +7,4 @@ http-request ^https:\/\/www\.flyert\.com\/source\/plugin\/mobile\/mobile\.php\?m
 cron "21 10 * * *" script-path=https://raw.githubusercontent.com/chavyleung/scripts/master/flyertea/flyertea.js
 
 [MITM]
-hostname = %APPEND% www.flyertea.com, www.flyert.com
+hostname = %APPEND% www.flyert.com
