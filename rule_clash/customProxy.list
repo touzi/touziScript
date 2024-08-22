@@ -11,5 +11,3 @@ DOMAIN-SUFFIX,services.googleapis.cn
 # PS5 STUN
 DOMAIN-SUFFIX,stun.playstation.net
 
-#crypto
-DOMAIN-SUFFIX,aicoin.com
