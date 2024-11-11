@@ -1,0 +1,9 @@
+# NAME: customCN
+# AUTHOR: touzi
+# REPO: https://github.com/Aethersailor/Custom_OpenClash_Rules
+# 强制直连，来自个人收集
+
+# EA Desktop 云同步
+#DOMAIN-SUFFIX,cloudsync-prod.s3.us-east-1.amazonaws.com
+# dune 直连尝试
+DOMAIN-SUFFIX,dune.com
