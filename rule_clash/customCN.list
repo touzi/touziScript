@@ -7,3 +7,4 @@
 #DOMAIN-SUFFIX,cloudsync-prod.s3.us-east-1.amazonaws.com
 # dune 直连尝试
 DOMAIN-SUFFIX,dune.com
+DOMAIN-SUFFIX,wallet-api.solflare.com
