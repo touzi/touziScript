@@ -1,0 +1,9 @@
+# NAME: customAI
+# AUTHOR: touzi
+# REPO: https://github.com/touzi/touziScript/new/main/rule_clash
+# UPDATED: 2024-07-03 16:18:28
+
+# DOMAIN,browser-intake-datadoghq.com
+# DOMAIN-SUFFIX,ai.com
+DOMAIN-SUFFIX,x.ai
+DOMAIN-SUFFIX,meta.ai
