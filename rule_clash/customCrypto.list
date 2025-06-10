@@ -1,0 +1,8 @@
+# NAME: customCrypto
+# AUTHOR: touzi
+# REPO: https://github.com/touzi/touziScript/new/main/rule_clash
+# UPDATED: 2025-06-10 19:33:22
+
+# DOMAIN,browser-intake-datadoghq.com
+# DOMAIN-SUFFIX,ai.com
+DOMAIN-SUFFIX,solscan.io
