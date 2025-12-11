@@ -13,44 +13,44 @@ DOMAIN-SUFFIX,689799.xyz
 DOMAIN-SUFFIX,hyperliquid.xyz
 
 # ===== HSBC Hong Kong App DIRECT =====
-host-suffix,hsbc.com,DIRECT
-host-suffix,hsbc.com.cn,DIRECT
-host-suffix,hsbc.com.hk,DIRECT
-host-suffix,hsbc.com.sg,DIRECT
-host-suffix,hsbcapi.com,DIRECT
-host-suffix,hsbcdynamic.com,DIRECT
-host-suffix,hsbcgroup.com,DIRECT
-host-suffix,hsbcnet.com,DIRECT
-host-suffix,hsbcnet.com.hk,DIRECT
-host-suffix,myhsbc.com,DIRECT
-host-suffix,mobile.hsbc,DIRECT
-host-suffix,mobile.hsbc.com.hk,DIRECT
-host-suffix,cms.hsbc.com,DIRECT
+host-suffix,hsbc.com
+host-suffix,hsbc.com.cn
+host-suffix,hsbc.com.hk
+host-suffix,hsbc.com.sg
+host-suffix,hsbcapi.com
+host-suffix,hsbcdynamic.com
+host-suffix,hsbcgroup.com
+host-suffix,hsbcnet.com
+host-suffix,hsbcnet.com.hk
+host-suffix,myhsbc.com
+host-suffix,mobile.hsbc
+host-suffix,mobile.hsbc.com.hk
+host-suffix,cms.hsbc.com
 
 # CDN / SYSTEM
-host-suffix,akamaiedge.net,DIRECT
-host-suffix,akamaitechnologies.com,DIRECT
-host-suffix,akamaized.net,DIRECT
-host-suffix,edgesuite.net,DIRECT
-host-suffix,akadns.net,DIRECT
-host-suffix,azure-api.net,DIRECT
-host-suffix,azureedge.net,DIRECT
-host-suffix,azurefd.net,DIRECT
+host-suffix,akamaiedge.net
+host-suffix,akamaitechnologies.com
+host-suffix,akamaized.net
+host-suffix,edgesuite.net
+host-suffix,akadns.net
+host-suffix,azure-api.net
+host-suffix,azureedge.net
+host-suffix,azurefd.net
 
 # Analytics
-host-suffix,112.2o7.net,DIRECT
-host-suffix,demdex.net,DIRECT
-host-suffix,adobedtm.com,DIRECT
-host-suffix,omtrdc.net,DIRECT
-host-suffix,googletagmanager.com,DIRECT
-host-suffix,app-measurement.com,DIRECT
+host-suffix,112.2o7.net
+host-suffix,demdex.net
+host-suffix,adobedtm.com
+host-suffix,omtrdc.net
+host-suffix,googletagmanager.com
+host-suffix,app-measurement.com
 
 # Microsoft (used by HSBC app services)
-host-suffix,live.com,DIRECT
-host-suffix,msedge.net,DIRECT
+host-suffix,live.com
+host-suffix,msedge.net
 
 # Bank-related external
-host-suffix,bankofchina.com,DIRECT
-host-suffix,ocbc.com,DIRECT
+host-suffix,bankofchina.com
+host-suffix,ocbc.com
 # 所有 hsbc 都走默认代理
-geosite,hsbc,DIRECT
+geosite,hsbc
