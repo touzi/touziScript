@@ -11,3 +11,45 @@ DOMAIN-SUFFIX,wallet-api.solflare.com
 DOMAIN-SUFFIX,mgtouzi.com
 DOMAIN-SUFFIX,689799.xyz
 DOMAIN-SUFFIX,hyperliquid.xyz
+
+# ===== HSBC Hong Kong App DIRECT =====
+host-suffix,hsbc.com,DIRECT
+host-suffix,hsbc.com.cn,DIRECT
+host-suffix,hsbc.com.hk,DIRECT
+host-suffix,hsbc.com.sg,DIRECT
+host-suffix,hsbcapi.com,DIRECT
+host-suffix,hsbcdynamic.com,DIRECT
+host-suffix,hsbcgroup.com,DIRECT
+host-suffix,hsbcnet.com,DIRECT
+host-suffix,hsbcnet.com.hk,DIRECT
+host-suffix,myhsbc.com,DIRECT
+host-suffix,mobile.hsbc,DIRECT
+host-suffix,mobile.hsbc.com.hk,DIRECT
+host-suffix,cms.hsbc.com,DIRECT
+
+# CDN / SYSTEM
+host-suffix,akamaiedge.net,DIRECT
+host-suffix,akamaitechnologies.com,DIRECT
+host-suffix,akamaized.net,DIRECT
+host-suffix,edgesuite.net,DIRECT
+host-suffix,akadns.net,DIRECT
+host-suffix,azure-api.net,DIRECT
+host-suffix,azureedge.net,DIRECT
+host-suffix,azurefd.net,DIRECT
+
+# Analytics
+host-suffix,112.2o7.net,DIRECT
+host-suffix,demdex.net,DIRECT
+host-suffix,adobedtm.com,DIRECT
+host-suffix,omtrdc.net,DIRECT
+host-suffix,googletagmanager.com,DIRECT
+host-suffix,app-measurement.com,DIRECT
+
+# Microsoft (used by HSBC app services)
+host-suffix,live.com,DIRECT
+host-suffix,msedge.net,DIRECT
+
+# Bank-related external
+host-suffix,bankofchina.com,DIRECT
+host-suffix,ocbc.com,DIRECT
+
