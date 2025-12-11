@@ -52,4 +52,5 @@ host-suffix,msedge.net,DIRECT
 # Bank-related external
 host-suffix,bankofchina.com,DIRECT
 host-suffix,ocbc.com,DIRECT
-
+# 所有 hsbc 都走默认代理
+geosite,hsbc,DIRECT
