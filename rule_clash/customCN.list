@@ -13,44 +13,44 @@ DOMAIN-SUFFIX,689799.xyz
 DOMAIN-SUFFIX,hyperliquid.xyz
 
 # ===== HSBC Hong Kong App DIRECT =====
-host-suffix,hsbc.com
-host-suffix,hsbc.com.cn
-host-suffix,hsbc.com.hk
-host-suffix,hsbc.com.sg
-host-suffix,hsbcapi.com
-host-suffix,hsbcdynamic.com
-host-suffix,hsbcgroup.com
-host-suffix,hsbcnet.com
-host-suffix,hsbcnet.com.hk
-host-suffix,myhsbc.com
-host-suffix,mobile.hsbc
-host-suffix,mobile.hsbc.com.hk
-host-suffix,cms.hsbc.com
+DOMAIN-SUFFIX,hsbc.com
+DOMAIN-SUFFIX,hsbc.com.cn
+DOMAIN-SUFFIX,hsbc.com.hk
+DOMAIN-SUFFIX,hsbc.com.sg
+DOMAIN-SUFFIX,hsbcapi.com
+DOMAIN-SUFFIX,hsbcdynamic.com
+DOMAIN-SUFFIX,hsbcgroup.com
+DOMAIN-SUFFIX,hsbcnet.com
+DOMAIN-SUFFIX,hsbcnet.com.hk
+DOMAIN-SUFFIX,myhsbc.com
+DOMAIN-SUFFIX,mobile.hsbc
+DOMAIN-SUFFIX,mobile.hsbc.com.hk
+DOMAIN-SUFFIX,cms.hsbc.com
 
 # CDN / SYSTEM
-host-suffix,akamaiedge.net
-host-suffix,akamaitechnologies.com
-host-suffix,akamaized.net
-host-suffix,edgesuite.net
-host-suffix,akadns.net
-host-suffix,azure-api.net
-host-suffix,azureedge.net
-host-suffix,azurefd.net
+DOMAIN-SUFFIX,akamaiedge.net
+DOMAIN-SUFFIX,akamaitechnologies.com
+DOMAIN-SUFFIX,akamaized.net
+DOMAIN-SUFFIX,edgesuite.net
+DOMAIN-SUFFIX,akadns.net
+DOMAIN-SUFFIX,azure-api.net
+DOMAIN-SUFFIX,azureedge.net
+DOMAIN-SUFFIX,azurefd.net
 
 # Analytics
-host-suffix,112.2o7.net
-host-suffix,demdex.net
-host-suffix,adobedtm.com
-host-suffix,omtrdc.net
-host-suffix,googletagmanager.com
-host-suffix,app-measurement.com
+DOMAIN-SUFFIX,112.2o7.net
+DOMAIN-SUFFIX,demdex.net
+DOMAIN-SUFFIX,adobedtm.com
+DOMAIN-SUFFIX,omtrdc.net
+DOMAIN-SUFFIX,googletagmanager.com
+DOMAIN-SUFFIX,app-measurement.com
 
 # Microsoft (used by HSBC app services)
-host-suffix,live.com
-host-suffix,msedge.net
+DOMAIN-SUFFIX,live.com
+DOMAIN-SUFFIX,msedge.net
 
 # Bank-related external
-host-suffix,bankofchina.com
-host-suffix,ocbc.com
+DOMAIN-SUFFIX,bankofchina.com
+DOMAIN-SUFFIX,ocbc.com
 # 所有 hsbc 都走默认代理
 geosite,hsbc
