@@ -56,6 +56,7 @@
       {"clash_mode": "direct", "outbound": "🎯 全球直连"},
       {"clash_mode": "global", "outbound": "GLOBAL"},
       {"rule_set": "geosite-crypto", "outbound": "crypto"},
+      {"rule_set": "custom-crypto", "outbound": "crypto"},
       {"rule_set": "geosite-ai", "outbound": "🧠 AI"},
       {"rule_set": "geosite-youtube", "outbound": "📹 YouTube"},
       {"rule_set": "geosite-google", "outbound": "🍀 Google"},
@@ -79,7 +80,7 @@
       {"rule_set": "geoip-cn", "outbound": "🎯 全球直连"}
     ],
     "rule_set": [
-      {"tag": "geosite-crypto", "type": "remote", "format": "source", "url": "https://gh-proxy.com/https://raw.githubusercontent.com/touzi/touziScript/refs/heads/main/rule_clash/custem-crypto.json", "download_detour": "🎯 全球直连"},
+      {"tag": "custom-crypto", "type": "remote", "format": "source", "url": "https://gh-proxy.com/https://raw.githubusercontent.com/touzi/touziScript/refs/heads/main/rule_clash/custem-crypto.json", "download_detour": "🎯 全球直连"},
       {"tag": "geosite-crypto", "type": "remote", "format": "binary", "url": "https://gh-proxy.com/https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/category-cryptocurrency.srs", "download_detour": "🎯 全球直连"},
       {"tag": "geosite-fakeipfilter", "type": "remote", "format": "source", "url": "https://gh-proxy.com/https://raw.githubusercontent.com/qichiyuhub/rule/refs/heads/main/fakeipfilter.json", "download_detour": "🎯 全球直连"},
       {"tag": "geosite-ai", "type": "remote", "format": "binary", "url": "https://gh-proxy.com/https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/category-ai-!cn.srs", "download_detour": "🎯 全球直连"},
