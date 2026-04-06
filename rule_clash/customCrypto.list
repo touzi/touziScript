@@ -5,6 +5,7 @@
 
 # DOMAIN,browser-intake-datadoghq.com
 # DOMAIN-SUFFIX,ai.com
+DOMAIN-SUFFIX,hyperdash.com
 DOMAIN-SUFFIX,solscan.io
 DOMAIN-SUFFIX,gmgn.ai
 DOMAIN-SUFFIX,jup.ag
