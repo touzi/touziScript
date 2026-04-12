@@ -12,3 +12,5 @@ DOMAIN-SUFFIX,services.googleapis.cn
 DOMAIN-SUFFIX,stun.playstation.net
 DOMAIN-SUFFIX,pythonhosted.org
 DOMAIN-SUFFIX,pages.dev
+# larksuite 海外飞书
+DOMAIN-KEYWORD,larksuite
