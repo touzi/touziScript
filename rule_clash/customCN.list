@@ -8,6 +8,8 @@
 # dune 直连尝试
 DOMAIN-SUFFIX,dune.com
 DOMAIN-SUFFIX,mgtouzi.com
+# ubuntu download
+DOMAIN-SUFFIX,releases.ubuntu.com
 
 # ===== HSBC Hong Kong App DIRECT =====
 DOMAIN-SUFFIX,hsbc.com
