@@ -14,3 +14,4 @@ DOMAIN-SUFFIX,pythonhosted.org
 DOMAIN-SUFFIX,pages.dev
 # Docker
 DOMAIN-SUFFIX,docker.io
+DOMAIN-SUFFIX,docker.com
