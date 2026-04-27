@@ -12,4 +12,5 @@ DOMAIN-SUFFIX,services.googleapis.cn
 DOMAIN-SUFFIX,stun.playstation.net
 DOMAIN-SUFFIX,pythonhosted.org
 DOMAIN-SUFFIX,pages.dev
-
+# Docker
+DOMAIN-SUFFIX,docker.io
