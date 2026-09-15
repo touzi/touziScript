@@ -1,0 +1,10 @@
+# NAME: customCryptoUS
+# AUTHOR: touzi
+# REPO: https://github.com/touzi/touziScript/new/main/rule_clash
+# UPDATED: 2026-09-15 11:33:22
+
+# DOMAIN,browser-intake-datadoghq.com
+# DOMAIN-SUFFIX,ai.com
+DOMAIN-SUFFIX,hyperliquid.xyz
+DOMAIN-SUFFIX,revert.finance
+DOMAIN-SUFFIX,fables.fi
