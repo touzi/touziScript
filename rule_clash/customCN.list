@@ -6,8 +6,10 @@
 DOMAIN-SUFFIX,edgeone.857595.xyz
 # EA Desktop 云同步
 #DOMAIN-SUFFIX,cloudsync-prod.s3.us-east-1.amazonaws.com
-# dune 直连尝试
-DOMAIN-SUFFIX,dune.com
+# 投地址
+DOMAIN-SUFFIX,edgeone.857595.xyz
+DOMAIN-SUFFIX,touzi.qzz.io
+DOMAIN-SUFFIX,ygkkk.dpdns.org
 DOMAIN-SUFFIX,mgtouzi.com
 # ubuntu download
 DOMAIN-SUFFIX,releases.ubuntu.com
