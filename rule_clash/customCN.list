@@ -66,8 +66,6 @@ DOMAIN-SUFFIX,msedge.net
 # Bank-related external
 DOMAIN-SUFFIX,bankofchina.com
 DOMAIN-SUFFIX,ocbc.com
-# 所有 hsbc 都走默认代理
-GEOSITE,hsbc
 
 # ===== CF优选 DIRECT =====
 DOMAIN-SUFFIX,cf.3666888.xyz
