@@ -17,7 +17,7 @@ DOMAIN-SUFFIX,ip6.seeip.org
 DOMAIN-SUFFIX,kit327.com
 DOMAIN-SUFFIX,members.3322.org
 
-DOMAIN-SUFFIX,edgeone.857595.xyz
+
 # EA Desktop 云同步
 #DOMAIN-SUFFIX,cloudsync-prod.s3.us-east-1.amazonaws.com
 # 投地址
@@ -41,9 +41,6 @@ DOMAIN-SUFFIX,hsbcgroup.com
 DOMAIN-SUFFIX,hsbcnet.com
 DOMAIN-SUFFIX,hsbcnet.com.hk
 DOMAIN-SUFFIX,myhsbc.com
-DOMAIN-SUFFIX,mobile.hsbc
-DOMAIN-SUFFIX,mobile.hsbc.com.hk
-DOMAIN-SUFFIX,cms.hsbc.com
 
 # CDN / SYSTEM
 DOMAIN-SUFFIX,akamaiedge.net
@@ -70,7 +67,7 @@ DOMAIN-SUFFIX,msedge.net
 DOMAIN-SUFFIX,bankofchina.com
 DOMAIN-SUFFIX,ocbc.com
 # 所有 hsbc 都走默认代理
-geosite,hsbc
+GEOSITE,hsbc
 
 # ===== CF优选 DIRECT =====
 DOMAIN-SUFFIX,cf.3666888.xyz
@@ -160,11 +157,9 @@ DOMAIN-SUFFIX,www.owlgraphic.com
 DOMAIN-SUFFIX,page.mercer.com
 DOMAIN-SUFFIX,icook.hk
 DOMAIN-SUFFIX,garuda-indonesia.com
-DOMAIN-SUFFIX,dl.macked.app
 DOMAIN-SUFFIX,cf.877774.xyz
 DOMAIN-SUFFIX,api.uniapi.io
 DOMAIN-SUFFIX,flightradar24.com
-DOMAIN-SUFFIX,cdn.2x.nz
 DOMAIN-SUFFIX,thebeat.gehealthcare.com
 DOMAIN-SUFFIX,cdn.fiatnorm.us.kg
 DOMAIN-SUFFIX,clickhouse.com
