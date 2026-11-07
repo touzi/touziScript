@@ -1,3 +1,7 @@
+# NAME: customReject
+# AUTHOR: touzi
+# REPO: 
+# UPDATED: 2026-11-07
 
 # bilibili pcdn 屏蔽
 DOMAIN-WILDCARD,*pcdn*.biliapi.net
