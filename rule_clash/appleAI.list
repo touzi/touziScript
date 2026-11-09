@@ -1,0 +1,18 @@
+# 1. Siri 核心语音交互必须直连（防普通通话 Siri 报错）
+DOMAIN-SUFFIX,guzzoni.apple.com,DIRECT
+DOMAIN-SUFFIX,siri.apple.com,DIRECT
+DOMAIN,dejavu.apple.com,DIRECT
+DOMAIN,sequoia.apple.com,DIRECT
+DOMAIN-SUFFIX,smoot.apple.com,DIRECT
+
+# 2. Apple 智能资格校验与私密云计算中继（固定走低延迟美国节点）
+DOMAIN,gspe1-ssl.ls.apple.com,AI
+DOMAIN-SUFFIX,apple-relay.apple.com,AI
+DOMAIN-SUFFIX,apple-relay.cloudflare.com,AI
+DOMAIN-SUFFIX,apple-relay.fastly-edge.com,AI
+DOMAIN-SUFFIX,apple-relay.akamaized.net,AI
+DOMAIN-SUFFIX,cp4.cloudflare.com,AI
+
+# 3. ChatGPT / OpenAI 扩展（走美国节点）
+DOMAIN-SUFFIX,openai.com,AI
+DOMAIN-SUFFIX,chatgpt.com,AI
