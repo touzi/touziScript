@@ -3,6 +3,8 @@
 # REPO: https://github.com/Aethersailor/Custom_OpenClash_Rules
 # 强制直连，来自个人收集
 
+# CN AI
+DOMAIN-SUFFIX,agentos-worker.net
 # DDNS
 DOMAIN-KEYWORD,synology
 DOMAIN-KEYWORD,quickconnect
