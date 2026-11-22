@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 #
-# pxy-install.sh v3.0 — Xray + sing-box 多协议一键部署 (Debian/Ubuntu + systemd)
+# pxy-install.sh v4.0 — Xray + sing-box 多协议一键部署 (Debian/Ubuntu + systemd)
 #
 # 版本记录:
 #   v1.0  8 个协议,随机参数,自签证书,第三方伪装域名
 #   v2.0  新增自偷域名模式: Cloudflare DNS-01 自动签发/续签证书、伪装站点、nginx 回落
 #   v3.0  vless-xhttp-enc / vless-ws-enc / vmess-ws 启用 TLS (ws 类仅声明 http/1.1)
+#   v4.0  伪装站点由博客改为 API 接口站点 (JSON 接口 + openapi.json + /docs)
 #
 # Xray     : Vless-tcp-reality-vision / Vless-xhttp-reality-enc
 #            Vless-xhttp-enc (TLS) / Vless-ws-enc (TLS) / Vmess-ws (TLS)
@@ -15,7 +16,7 @@
 #   自偷域名模式  填写已托管在 Cloudflare 的域名 + API Token 后:
 #                 - 自动在 Cloudflare 创建/校正 A 记录 (仅 DNS,不走代理)
 #                 - certbot 通过 DNS-01 申请 Let's Encrypt 证书并自动续签
-#                 - 自动生成伪装网站,nginx 仅监听 127.0.0.1 作为 Reality 的 target
+#                 - 自动生成伪装 API 站点,nginx 仅监听 127.0.0.1 作为 Reality 的 target
 #                 - Vless-reality-vision 监听 443,Tuic/AnyTLS/Hy2 使用正式证书
 #   第三方伪装模式 域名留空: Reality 借用第三方大站,sing-box 使用自签证书
 #
@@ -49,7 +50,7 @@ CONF_DIR="${PXY_DIR:-/etc/pxy}"
 BIN_DIR="${PXY_BIN:-/usr/local/bin}"
 SITE_DIR="${PXY_SITE:-/var/www/pxy-site}"
 CF_API="${CF_API:-https://api.cloudflare.com/client/v4}"
-VERSION="3.0"
+VERSION="4.0"
 SVC_USER="pxy"
 HOP_START=2300
 HOP_END=3300
@@ -388,88 +389,65 @@ issue_cert() {
 
 # ───────────────────────── 伪装网站 + nginx ─────────────────────────
 
-html_page() {   # html_page 标题 正文HTML   (依赖 gen_site 中的 name / yr 变量)
-  cat <<EOF
-<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>$1 · $name</title>
-<link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/style.css"></head>
-<body><header><a class="brand" href="/">$name</a><nav><a href="/">Notes</a><a href="/about.html">About</a></nav></header>
-<main>
-$2
-</main>
-<footer>&copy; $yr $name</footer></body></html>
-EOF
-}
+gen_site() {   # 生成 API 风格的伪装站点: openapi.json + /docs 文档页,其余接口由 nginx 直接返回 JSON
+  local root="$SITE_DIR" i r label paths
+  local pool=("users" "items" "orders" "projects" "invoices" "devices" "events" "reports")
+  local regions=("ap-northeast-1" "ap-southeast-1" "us-west-2" "eu-central-1")
 
-gen_site() {   # 生成一个体积很小 (几十 KB) 的静态博客,内容、配色、日期随机
-  local root="$SITE_DIR" name accent yr i n d list=""
-  local accents=("#2563eb" "#0f766e" "#b45309" "#7c3aed" "#be123c" "#15803d")
-  local titles=(
-    "Keeping a small VPS healthy"
-    "Why I still write plain HTML"
-    "A weekend with SQLite"
-    "Backups you will actually restore"
-    "Reading logs without losing your mind"
-    "Small habits for calmer deployments")
-  local p1=(
-    "A small server does not need much attention, but it does need some. I check disk usage, pending updates and failed services once a week, and I keep the list short enough that it never feels like a chore."
-    "Static pages load fast, break rarely and survive every framework fashion. For notes and small sites, a folder of HTML files and one stylesheet is hard to beat."
-    "I moved a small side project from a hosted database to a single SQLite file and nothing bad happened. Reads are quick, backups are a file copy, and deployment got simpler."
-    "A backup that has never been restored is a hope, not a plan. Once a month I pick a file at random and restore it to a scratch directory just to see that it works."
-    "Most log files are noise. I start with the time window of the problem, filter out the lines that appear every minute, and only then read what is left."
-    "Deploy early in the day, change one thing at a time, and always know how to go back. None of this is clever, but it removes most of the stress.")
-  local p2=(
-    "Unattended security updates cover most of the risk. The rest is remembering what you installed and why, so a short README in the home directory pays for itself."
-    "When something does go wrong there is exactly one place to look. That alone is worth the loss of a few conveniences."
-    "The limits are real, mostly around concurrent writers, but for a personal tool they never came up."
-    "Keep the procedure written down. At the moment you need it you will not remember the flags."
-    "A few saved shell one-liners do more than any dashboard I have ever set up."
-    "Write the rollback step before you write the deploy step. You will be glad of it the first time something breaks.")
-
-  name="${DOMAIN%%.*}"
-  name="$(printf '%s' "${name:0:1}" | tr '[:lower:]' '[:upper:]')${name:1}"
-  accent="${accents[RANDOM % ${#accents[@]}]}"
-  yr=$(date +%Y)
+  label="${DOMAIN%%.*}"
+  # api.example.com 这类域名: 首个标签太通用,改取下一级作站名
+  if [[ "$label" =~ ^(api|www|app|rest|gateway|svc|service|backend|v[0-9]+)$ ]] && [[ "$DOMAIN" == *.*.* ]]; then
+    label="${DOMAIN#*.}"; label="${label%%.*}"
+  fi
+  label="$(printf '%s' "${label:0:1}" | tr '[:lower:]' '[:upper:]')${label:1}"
+  API_NAME="$label API"
+  API_VER="1.$((RANDOM % 8 + 2)).$((RANDOM % 20))"
+  API_REGION="${regions[RANDOM % ${#regions[@]}]}"
+  API_RES=()
+  while read -r i; do API_RES+=("${pool[$i]}"); done < <(shuf -i 0-7 -n 4)
 
   rm -rf "$root"
-  mkdir -p "$root/posts"
+  mkdir -p "$root"
 
-  cat > "$root/style.css" <<EOF
-:root{--accent:$accent}
-*{box-sizing:border-box}
-body{margin:0;font:17px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#1f2937;background:#fff}
-header,main,footer{max-width:720px;margin:0 auto;padding:0 20px}
-header{display:flex;justify-content:space-between;align-items:center;padding-top:28px;padding-bottom:18px;border-bottom:1px solid #e5e7eb}
-.brand{font-weight:700;font-size:1.2em;color:var(--accent);text-decoration:none}
-nav a{margin-left:18px;color:#4b5563;text-decoration:none}
-nav a:hover,main a:hover{color:var(--accent)}
-main{padding-top:26px;padding-bottom:40px}
-h1{font-size:1.6em;line-height:1.25;margin:0 0 .6em}
-h2{font-size:1.2em;margin:1.6em 0 .2em}
-.date{color:#6b7280;font-size:.85em}
-main a{color:var(--accent)}
-footer{padding-top:18px;padding-bottom:40px;color:#6b7280;font-size:.85em;border-top:1px solid #e5e7eb}
-@media (prefers-color-scheme:dark){body{background:#111827;color:#e5e7eb}header,footer{border-color:#374151}nav a{color:#9ca3af}}
-EOF
-
-  printf '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="%s"/><text x="32" y="44" font-size="34" font-family="sans-serif" font-weight="700" text-anchor="middle" fill="#fff">%s</text></svg>\n' \
-    "$accent" "${name:0:1}" > "$root/favicon.svg"
-  printf 'User-agent: *\nAllow: /\n' > "$root/robots.txt"
-
-  n=1
-  for i in $(shuf -i 0-5 -n 4); do
-    d=$(date -d "-$((RANDOM % 80 + 5)) days" +%Y-%m-%d)
-    html_page "${titles[$i]}" "<h1>${titles[$i]}</h1><p class=\"date\">$d</p><p>${p1[$i]}</p><p>${p2[$i]}</p><p><a href=\"/\">&larr; Back to notes</a></p>" > "$root/posts/$n.html"
-    list+="<h2><a href=\"/posts/$n.html\">${titles[$i]}</a></h2><p class=\"date\">$d</p><p>${p1[$i]}</p>"
-    n=$((n + 1))
+  paths=$(jq -nc '{
+    "/health":    {"get":{"summary":"Health check","responses":{"200":{"description":"OK"}}}},
+    "/v1/ping":   {"get":{"summary":"Connectivity check","responses":{"200":{"description":"OK"}}}},
+    "/v1/time":   {"get":{"summary":"Server time","responses":{"200":{"description":"OK"}}}},
+    "/v1/status": {"get":{"summary":"Service status","responses":{"200":{"description":"OK"}}}}
+  }')
+  for r in "${API_RES[@]}"; do
+    paths=$(jq -c --arg p "/v1/$r" --arg n "$r" \
+      '. + {($p): {"get": {"summary": ("List " + $n), "security": [{"bearerAuth": []}],
+            "responses": {"200": {"description": "OK"}, "401": {"description": "Unauthorized"}}}}}' <<<"$paths")
   done
-  html_page "Notes" "<h1>Notes</h1><p>Short write-ups about running small projects, mostly for my own future reference.</p>$list" > "$root/index.html"
-  html_page "About" "<h1>About</h1><p>This is a personal notebook. I write about small servers, simple tools and the habits that keep side projects alive.</p><p>There is no newsletter and no tracking.</p>" > "$root/about.html"
-  html_page "Not found" "<h1>Page not found</h1><p>The page you are looking for does not exist. <a href=\"/\">Go back to the notes.</a></p>" > "$root/404.html"
+  jq -n --arg t "$API_NAME" --arg v "$API_VER" --argjson paths "$paths" \
+    '{openapi:"3.0.3", info:{title:$t, version:$v, description:"REST API. Authenticate with a Bearer API key."},
+      paths:$paths, components:{securitySchemes:{bearerAuth:{type:"http", scheme:"bearer"}}}}' > "$root/openapi.json"
+
+  {
+    cat <<EOF
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>$API_NAME Documentation</title>
+<style>body{font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;max-width:760px;margin:40px auto;padding:0 20px;color:#1f2937}
+code{background:#f3f4f6;padding:2px 6px;border-radius:4px}h1{margin-bottom:0}.v{color:#6b7280}table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid #e5e7eb;padding:8px;text-align:left}
+@media (prefers-color-scheme:dark){body{background:#111827;color:#e5e7eb}code{background:#1f2937}td,th{border-color:#374151}}</style></head>
+<body><h1>$API_NAME</h1><p class="v">Version $API_VER &middot; Region $API_REGION</p>
+<p>Base URL: <code>https://$DOMAIN</code>. Send your API key as <code>Authorization: Bearer &lt;key&gt;</code>. The machine-readable spec is at <a href="/openapi.json">/openapi.json</a>.</p>
+<table><tr><th>Method</th><th>Path</th><th>Auth</th></tr>
+<tr><td>GET</td><td><code>/health</code></td><td>none</td></tr>
+<tr><td>GET</td><td><code>/v1/ping</code></td><td>none</td></tr>
+<tr><td>GET</td><td><code>/v1/time</code></td><td>none</td></tr>
+<tr><td>GET</td><td><code>/v1/status</code></td><td>none</td></tr>
+EOF
+    for r in "${API_RES[@]}"; do
+      printf '<tr><td>GET</td><td><code>/v1/%s</code></td><td>Bearer</td></tr>\n' "$r"
+    done
+    printf '</table></body></html>\n'
+  } > "$root/docs.html"
 
   chmod -R a+rX "$root"
-  log "伪装网站已生成: $root ($(du -sk "$root" | cut -f1) KB)"
+  log "伪装 API 站点已生成: $API_NAME v$API_VER (接口: health ping time status ${API_RES[*]})"
 }
 
 write_nginx() {
@@ -494,12 +472,34 @@ server {
     server_tokens off;
 
     root $SITE_DIR;
-    index index.html;
+    default_type application/json;
     limit_rate 512k;
-    error_page 404 /404.html;
+    add_header Cache-Control "no-store" always;
+    add_header X-Request-Id \$request_id always;
+    add_header X-Content-Type-Options "nosniff" always;
 
-    location / { try_files \$uri \$uri/ =404; }
-    location = /404.html { internal; }
+    location = / { return 200 '{"name":"$API_NAME","version":"$API_VER","status":"ok","docs":"/docs","openapi":"/openapi.json"}'; }
+    location = /health  { return 200 '{"status":"ok"}'; }
+    location = /healthz { return 200 '{"status":"ok"}'; }
+    location = /v1/ping { return 200 '{"pong":true}'; }
+    location = /v1/time { return 200 '{"time":"\$time_iso8601","unix":\$msec}'; }
+    location = /v1/status {
+        return 200 '{"status":"operational","version":"$API_VER","region":"$API_REGION","time":"\$time_iso8601"}';
+    }
+
+    location = /openapi.json { try_files /openapi.json =404; }
+    location = /docs { try_files /docs.html =404; }
+
+    # 受保护资源: 没有密钥一律 401
+    location ~ ^/v1/($(IFS='|'; echo "${API_RES[*]}"))(/|\$) {
+        add_header Cache-Control "no-store" always;
+        add_header X-Request-Id \$request_id always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header WWW-Authenticate 'Bearer realm="api"' always;
+        return 401 '{"error":{"code":"unauthorized","message":"Missing or invalid API key."}}';
+    }
+
+    location / { return 404 '{"error":{"code":"not_found","message":"The requested resource was not found."}}'; }
 }
 
 server {
@@ -898,7 +898,7 @@ do_install() {
 EOF
   if [ "$MODE" = "selfsteal" ]; then
     cat <<EOF
-  4. 伪装网站: https://$DOMAIN  (用浏览器打开应看到一个普通博客)
+  4. 伪装 API 站点: https://$DOMAIN  (浏览器打开返回 JSON;/docs 是接口文档,/openapi.json 是接口描述)
   5. 证书自动续签由 certbot.timer 负责,可用 certbot renew --dry-run 验证续签流程。
   6. Cloudflare 上 $DOMAIN 的 A 记录必须保持"仅 DNS (灰云)",开启代理 (橙云) 会让 Reality 失效,并可能被他人当作转发节点。
 EOF
@@ -935,7 +935,7 @@ do_upgrade() {
 do_uninstall() {
   [ -d "$CONF_DIR" ] || die "未安装"
   if [ "$ASSUME_YES" -eq 0 ]; then
-    read -rp "确认卸载 (将删除所有配置、节点信息和伪装站点)? [y/N] " ans </dev/tty || ans=n
+    read -rp "确认卸载 (将删除所有配置、节点信息和伪装 API 站点)? [y/N] " ans </dev/tty || ans=n
     [[ "$ans" =~ ^[Yy]$ ]] || exit 0
   fi
   local p TCP_PORTS="" UDP_PORTS="" MODE="" DOMAIN=""
