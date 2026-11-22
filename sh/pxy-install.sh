@@ -1,12 +1,17 @@
 #!/usr/bin/env bash
 #
-# pxy-install.sh v4.0 — Xray + sing-box 多协议一键部署 (Debian/Ubuntu + systemd)
+# pxy-install.sh v4.3 — Xray + sing-box 多协议一键部署 (Debian/Ubuntu + systemd)
 #
 # 版本记录:
 #   v1.0  8 个协议,随机参数,自签证书,第三方伪装域名
 #   v2.0  新增自偷域名模式: Cloudflare DNS-01 自动签发/续签证书、伪装站点、nginx 回落
 #   v3.0  vless-xhttp-enc / vless-ws-enc / vmess-ws 启用 TLS (ws 类仅声明 http/1.1)
 #   v4.0  伪装站点由博客改为 API 接口站点 (JSON 接口 + openapi.json + /docs)
+#   v4.1  随机端口范围改为 1000-5000 (自动避开跳跃区间 2300-3300)
+#   v4.2  随机端口改为 3301-5000 (Hy2 跳跃区间固定 2300-3300);证书续签后同时重启 Xray;
+#         自签模式链接改用 pcs= 证书指纹 (新版 Xray 系客户端已移除 allowInsecure);安装中断时给出提示
+#   v4.3  本地证书检测与复用 (避免 Let's Encrypt 频率限制),进入续签窗口自动更新有效期,新增 renew-cert;
+#         卸载默认保留证书;安装完成后自动执行一次时间同步
 #
 # Xray     : Vless-tcp-reality-vision / Vless-xhttp-reality-enc
 #            Vless-xhttp-enc (TLS) / Vless-ws-enc (TLS) / Vmess-ws (TLS)
@@ -15,7 +20,8 @@
 # 两种模式 (运行时交互选择):
 #   自偷域名模式  填写已托管在 Cloudflare 的域名 + API Token 后:
 #                 - 自动在 Cloudflare 创建/校正 A 记录 (仅 DNS,不走代理)
-#                 - certbot 通过 DNS-01 申请 Let's Encrypt 证书并自动续签
+#                 - 本地已有该域名的有效证书时直接复用;否则 certbot 通过 DNS-01 申请 Let's Encrypt 证书
+#                   并自动续签 (进入 30 天续签窗口时安装/renew-cert 会自动更新有效期)
 #                 - 自动生成伪装 API 站点,nginx 仅监听 127.0.0.1 作为 Reality 的 target
 #                 - Vless-reality-vision 监听 443,Tuic/AnyTLS/Hy2 使用正式证书
 #   第三方伪装模式 域名留空: Reality 借用第三方大站,sing-box 使用自签证书
@@ -26,7 +32,9 @@
 #   bash pxy-install.sh             安装 (交互)
 #   bash pxy-install.sh info        查看节点链接、服务和证书状态
 #   bash pxy-install.sh upgrade     升级 Xray / sing-box 内核 (保留配置)
-#   bash pxy-install.sh uninstall   卸载
+#   bash pxy-install.sh renew-cert  检查并更新本地证书有效期 (到期前 30 天内自动续签),并重载服务
+#   bash pxy-install.sh uninstall   卸载 (默认保留该域名的证书,重装时自动复用)
+#   --purge-cert                    卸载时同时删除该域名的证书
 #   加 --no-service 只下载内核、生成并校验配置,不创建用户/服务/证书/防火墙规则
 #
 # 非交互 / 可选环境变量:
@@ -35,7 +43,11 @@
 #   ACME_EMAIL=xxx       证书通知邮箱 (可空)
 #   CF_MANAGE_DNS=1|0    是否由脚本创建/更新 A 记录 (默认 1)
 #   ACME_STAGING=1       使用 Let's Encrypt 测试环境 (仅调试,证书不被信任)
+#   CERT_FILE / KEY_FILE 使用已有的证书文件 (需同时指定;不会被本脚本自动续签)
+#   FORCE_RENEW=1        强制续签 (会计入 Let's Encrypt 重复证书频率限制,谨慎使用)
+#   SKIP_TIMESYNC=1      安装后不执行时间同步
 #   SELF_STEAL_PORT=443  自偷模式下 Vision 节点端口 (默认 443)
+#   PORT_MIN / PORT_MAX  随机端口范围 (默认 3301 / 5000;Hysteria2 跳跃区间固定为 UDP 2300-3300)
 #   REALITY_SNI=xxx      第三方伪装模式下指定伪装域名
 #   REALITY_PORT=443     第三方伪装模式下 Vision 节点固定端口 (默认随机)
 #   VLESSENC_AUTH=mlkem  VLESS Encryption 使用 ML-KEM-768 (默认 X25519)
@@ -50,7 +62,7 @@ CONF_DIR="${PXY_DIR:-/etc/pxy}"
 BIN_DIR="${PXY_BIN:-/usr/local/bin}"
 SITE_DIR="${PXY_SITE:-/var/www/pxy-site}"
 CF_API="${CF_API:-https://api.cloudflare.com/client/v4}"
-VERSION="4.0"
+VERSION="4.3"
 SVC_USER="pxy"
 HOP_START=2300
 HOP_END=3300
@@ -60,7 +72,9 @@ CMD="install"
 MODE="thirdparty"
 NGINX_CONF="/etc/nginx/conf.d/pxy.conf"
 HOOK_PATH="/usr/local/sbin/pxy-cert-deploy"
-CF_INI="/etc/letsencrypt/cf-pxy.ini"
+LE_DIR="${LE_DIR:-/etc/letsencrypt}"
+CF_INI="$LE_DIR/cf-pxy.ini"
+PURGE_CERT=0
 
 log()  { printf '\033[32m[+]\033[0m %s\n' "$*"; }
 warn() { printf '\033[33m[!]\033[0m %s\n' "$*" >&2; }
@@ -181,14 +195,16 @@ rand_str() {   # rand_str 长度
   printf '%s' "${s:0:${1:-16}}"
 }
 
-pick_ports() {   # 从 10000-65000 中挑 9 个互不相同且未被占用的端口 (与跳跃区间 2300-3300 不重叠)
-  local p; PORTS=()
+pick_ports() {   # 从 PORT_MIN-PORT_MAX (默认 3301-5000) 中挑 9 个互不相同、未被占用的端口
+  local p min="${PORT_MIN:-3301}" max="${PORT_MAX:-5000}"; PORTS=()
   while read -r p; do
+    # 默认范围已在跳跃区间 (2300-3300) 之外;这里是自定义 PORT_MIN/PORT_MAX 时的保险
+    if [ "$p" -ge "$HOP_START" ] && [ "$p" -le "$HOP_END" ]; then continue; fi
     if ss -lntuH 2>/dev/null | awk -v s=":$p\$" '$5 ~ s {f=1} END{exit !f}'; then continue; fi
     PORTS+=("$p")
     [ "${#PORTS[@]}" -eq 9 ] && break
-  done < <(shuf -i 10000-65000 -n 64)
-  [ "${#PORTS[@]}" -eq 9 ] || die "无法挑选足够的空闲端口"
+  done < <(shuf -i "$min-$max" -n 600)
+  [ "${#PORTS[@]}" -eq 9 ] || die "无法在 $min-$max 内挑选足够的空闲端口"
 }
 
 check_dest() {   # check_dest 主机 [端口] [SNI]  —— 目标必须支持 TLS1.3 + h2
@@ -352,26 +368,147 @@ ensure_user() {
   id "$SVC_USER" >/dev/null 2>&1 || useradd --system --no-create-home --shell /usr/sbin/nologin "$SVC_USER"
 }
 
-write_cert_hook() {   # 签发/续签成功后: 复制证书给 sing-box 和 nginx 使用,并重载服务
+write_cf_credentials() {
+  install -d -m 700 "$LE_DIR"
+  printf 'dns_cloudflare_api_token = %s\n' "$CF_TOKEN" > "$CF_INI"
+  chmod 600 "$CF_INI"
+}
+
+write_cert_hook() {   # 签发/续签成功后: 复制证书给 sing-box、Xray 和 nginx 使用,并重载服务
   cat > "$HOOK_PATH" <<EOF
 #!/bin/sh
 # 由 pxy-install.sh 生成: certbot 签发/续签成功后自动执行
 set -e
-L="\${RENEWED_LINEAGE:-/etc/letsencrypt/live/$DOMAIN}"
+[ -d "$CONF_DIR" ] || exit 0
+getent group $SVC_USER >/dev/null 2>&1 || exit 0
+L="\${RENEWED_LINEAGE:-$LE_DIR/live/$DOMAIN}"
 install -m 640 -o root -g $SVC_USER "\$L/fullchain.pem" "$CONF_DIR/cert.pem"
 install -m 640 -o root -g $SVC_USER "\$L/privkey.pem"   "$CONF_DIR/cert.key"
 systemctl reload nginx >/dev/null 2>&1 || true
+systemctl restart pxy-xray >/dev/null 2>&1 || true
 systemctl restart pxy-singbox >/dev/null 2>&1 || true
 EOF
   chmod 755 "$HOOK_PATH"
 }
 
-issue_cert() {
-  install -d -m 700 /etc/letsencrypt
-  printf 'dns_cloudflare_api_token = %s\n' "$CF_TOKEN" > "$CF_INI"
-  chmod 600 "$CF_INI"
-  write_cert_hook
+# ── 本地证书检测 ──
 
+cert_days_left() {   # 剩余整天数 (已过期时为 0 或负数)
+  local end
+  end=$(date -d "$(openssl x509 -in "$1" -noout -enddate | cut -d= -f2)" +%s) || return 1
+  echo $(( (end - $(date +%s)) / 86400 ))
+}
+
+key_matches() {   # 证书公钥与私钥是否配对
+  [ "$(openssl x509 -in "$1" -noout -pubkey 2>/dev/null | sha256sum)" = "$(openssl pkey -in "$2" -pubout 2>/dev/null | sha256sum)" ]
+}
+
+cert_covers() {   # cert_covers 证书 域名  —— 精确匹配,或通配符 *.example.com 覆盖 a.example.com
+  local names n d="$2"
+  names=$(openssl x509 -in "$1" -noout -ext subjectAltName 2>/dev/null | tr ',' '\n' | sed -n 's/^ *DNS: *//p')
+  [ -n "$names" ] || names=$(openssl x509 -in "$1" -noout -subject 2>/dev/null | sed -n 's/.*CN *= *//p')
+  while read -r n; do
+    [ -n "$n" ] || continue
+    if [ "$n" = "$d" ]; then return 0; fi
+    if [[ "$n" == \*.* ]] && [[ "$d" == *.* ]] && [ "${d#*.}" = "${n#*.}" ]; then return 0; fi
+  done <<<"$names"
+  return 1
+}
+
+validate_local_cert() {   # validate_local_cert 证书 私钥 → 0 可用;1 不可用 (原因在 CERT_REASON: missing|mismatch|domain|staging|expired)
+  local c="$1" k="$2" issuer
+  CERT_REASON=""; CERT_DAYS=0; CERT_END=""
+  if [ ! -s "$c" ] || [ ! -s "$k" ]; then CERT_REASON=missing; return 1; fi
+  if ! key_matches "$c" "$k"; then CERT_REASON=mismatch; return 1; fi
+  if ! cert_covers "$c" "$DOMAIN"; then CERT_REASON=domain; return 1; fi
+  issuer=$(openssl x509 -in "$c" -noout -issuer 2>/dev/null || true)
+  if [[ "$issuer" == *[Ss][Tt][Aa][Gg][Ii][Nn][Gg]* ]] && [ "${ACME_STAGING:-0}" != "1" ]; then CERT_REASON=staging; return 1; fi
+  CERT_END=$(openssl x509 -in "$c" -noout -enddate | cut -d= -f2)
+  CERT_DAYS=$(cert_days_left "$c")
+  if ! openssl x509 -in "$c" -noout -checkend 0 >/dev/null 2>&1; then CERT_REASON=expired; return 1; fi
+  return 0
+}
+
+cert_reason_text() {
+  case "${CERT_REASON:-}" in
+    missing)  echo "证书或私钥文件不存在/为空" ;;
+    mismatch) echo "证书与私钥不匹配" ;;
+    domain)   echo "证书不覆盖 $DOMAIN" ;;
+    staging)  echo "这是 Let's Encrypt 测试环境 (STAGING) 证书,不被客户端信任" ;;
+    expired)  echo "证书已过期" ;;
+    *)        echo "未知原因" ;;
+  esac
+}
+
+install_cert_files() {   # install_cert_files 证书 私钥
+  install -m 640 -o root -g "$SVC_USER" "$1" "$CONF_DIR/cert.pem"
+  install -m 640 -o root -g "$SVC_USER" "$2" "$CONF_DIR/cert.key"
+}
+
+reload_services() {
+  systemctl reload nginx >/dev/null 2>&1 || true
+  systemctl restart pxy-xray pxy-singbox >/dev/null 2>&1 || true
+}
+
+# ── certbot 证书的保留/恢复/清理 ──
+
+restore_stashed_renewal() {   # 卸载时为避免定时任务空转,会把续签配置改名保存;重装时改回来
+  local f="$LE_DIR/renewal/$DOMAIN.conf"
+  if [ -f "$f.pxy-saved" ] && [ ! -f "$f" ]; then
+    mv "$f.pxy-saved" "$f"
+    log "已恢复 $DOMAIN 的证书续签配置"
+  fi
+}
+
+purge_lineage() {   # 彻底删除该域名的 certbot 证书
+  certbot delete --non-interactive --cert-name "$DOMAIN" >/dev/null 2>&1 || true
+  rm -rf "$LE_DIR/live/$DOMAIN" "$LE_DIR/archive/$DOMAIN" "$LE_DIR/renewal/$DOMAIN.conf" "$LE_DIR/renewal/$DOMAIN.conf.pxy-saved"
+}
+
+renew_cert() {   # 只在进入续签窗口 (剩余 ≤30 天) 或已过期时才会真正向 Let's Encrypt 请求
+  local args=(renew --cert-name "$DOMAIN" --non-interactive --deploy-hook "$HOOK_PATH")
+  if [ "${FORCE_RENEW:-0}" = "1" ]; then args+=(--force-renewal); fi
+  log "续签证书 (Cloudflare DNS-01)..."
+  certbot "${args[@]}"
+}
+
+use_certbot_lineage() {   # 返回 0: 本地 certbot 证书已就位 (复用或续签);1: 没有可用证书,需要重新申请
+  local live="$LE_DIR/live/$DOMAIN" c k
+  c="$live/fullchain.pem"; k="$live/privkey.pem"
+  [ -s "$c" ] && [ -s "$k" ] || return 1
+
+  if validate_local_cert "$c" "$k"; then
+    if [ "${FORCE_RENEW:-0}" = "1" ]; then
+      warn "FORCE_RENEW=1: 强制续签 (计入 Let's Encrypt 重复证书频率限制)"
+      renew_cert || return 1
+    elif [ "$CERT_DAYS" -le 30 ]; then
+      log "本地证书剩余 $CERT_DAYS 天 (到期 $CERT_END),已进入续签窗口,更新有效期"
+      renew_cert || return 1
+    else
+      log "发现本地证书 (到期 $CERT_END,剩余 $CERT_DAYS 天),直接复用,不向 Let's Encrypt 申请"
+    fi
+  elif [ "$CERT_REASON" = "expired" ]; then
+    log "本地证书已过期,尝试续签"
+    renew_cert || return 1
+  else
+    warn "本地证书不可用: $(cert_reason_text);将删除并重新申请"
+    purge_lineage
+    return 1
+  fi
+  RENEWED_LINEAGE="$live" "$HOOK_PATH"
+  CERT_SOURCE="certbot"
+}
+
+use_external_cert() {   # 使用 CERT_FILE / KEY_FILE 指定的证书
+  validate_local_cert "$CERT_FILE" "$KEY_FILE" || die "指定的证书文件不可用: $(cert_reason_text)"
+  install_cert_files "$CERT_FILE" "$KEY_FILE"
+  CERT_SOURCE="external"
+  log "使用指定的证书文件 (到期 $CERT_END,剩余 $CERT_DAYS 天)"
+  if [ "$CERT_DAYS" -le 14 ]; then warn "该证书即将到期"; fi
+  warn "外部证书不会被本脚本自动续签;更新证书文件后请运行: bash pxy-install.sh renew-cert"
+}
+
+issue_cert() {
   local args=(certonly --non-interactive --agree-tos --key-type ecdsa
               --dns-cloudflare --dns-cloudflare-credentials "$CF_INI"
               --dns-cloudflare-propagation-seconds 30
@@ -379,12 +516,35 @@ issue_cert() {
   if [ -n "${ACME_EMAIL:-}" ]; then args+=(-m "$ACME_EMAIL" --no-eff-email); else args+=(--register-unsafely-without-email); fi
   if [ "${ACME_STAGING:-0}" = "1" ]; then args+=(--test-cert); warn "使用 Let's Encrypt 测试环境,签发的证书不被客户端信任"; fi
 
-  log "通过 Cloudflare DNS-01 申请证书 (约需 1 分钟)..."
-  certbot "${args[@]}" || die "证书申请失败。常见原因: Token 权限不足、域名不在该 Token 的区域内、Let's Encrypt 频率限制"
-  RENEWED_LINEAGE="/etc/letsencrypt/live/$DOMAIN" "$HOOK_PATH"
+  log "本地没有可用证书,通过 Cloudflare DNS-01 申请 (约需 1 分钟)..."
+  certbot "${args[@]}" || die "证书申请失败。常见原因: Token 权限不足、域名不在该 Token 的区域内、Let's Encrypt 频率限制 (同一域名每周最多 5 张重复证书)"
+  RENEWED_LINEAGE="$LE_DIR/live/$DOMAIN" "$HOOK_PATH"
   [ -s "$CONF_DIR/cert.pem" ] && [ -s "$CONF_DIR/cert.key" ] || die "证书文件未就位"
+  CERT_SOURCE="certbot"
   systemctl enable --now certbot.timer >/dev/null 2>&1 || true
   log "证书已签发,certbot.timer 负责自动续签 (到期前 30 天内续签)"
+}
+
+cert_summary() {
+  if validate_local_cert "$CONF_DIR/cert.pem" "$CONF_DIR/cert.key"; then
+    log "证书有效期至: $CERT_END (剩余 $CERT_DAYS 天)"
+  else
+    warn "当前证书状态异常: $(cert_reason_text)"
+  fi
+}
+
+provision_cert() {   # 证书来源优先级: 指定文件 > 本地 certbot 证书 (复用/续签) > 重新申请
+  restore_stashed_renewal
+  write_cf_credentials
+  write_cert_hook
+  if [ -n "${CERT_FILE:-}" ] || [ -n "${KEY_FILE:-}" ]; then
+    [ -n "${CERT_FILE:-}" ] && [ -n "${KEY_FILE:-}" ] || die "CERT_FILE 和 KEY_FILE 需要同时指定"
+    use_external_cert
+  elif ! use_certbot_lineage; then
+    issue_cert
+  fi
+  systemctl enable --now certbot.timer >/dev/null 2>&1 || true
+  cert_summary
 }
 
 # ───────────────────────── 伪装网站 + nginx ─────────────────────────
@@ -684,8 +844,8 @@ table inet pxy_hop {
 EOF
   local tcp="$P_VISION $P_XHR $P_XH $P_WS $P_VM $P_ANYTLS"
   [ "$MODE" != "selfsteal" ] || tcp="$tcp 80"
-  printf 'MODE="%s"\nDOMAIN="%s"\nTCP_PORTS="%s"\nUDP_PORTS="%s"\n' \
-    "$MODE" "${DOMAIN:-}" "$tcp" "$P_TUIC $P_HY2" > "$CONF_DIR/ports.env"
+  printf 'MODE="%s"\nDOMAIN="%s"\nCERT_SOURCE="%s"\nCERT_FILE="%s"\nKEY_FILE="%s"\nTCP_PORTS="%s"\nUDP_PORTS="%s"\n' \
+    "$MODE" "${DOMAIN:-}" "${CERT_SOURCE:-}" "${CERT_FILE:-}" "${KEY_FILE:-}" "$tcp" "$P_TUIC $P_HY2" > "$CONF_DIR/ports.env"
 }
 
 validate() {
@@ -764,6 +924,8 @@ ExecStart=$BIN_DIR/sing-box run -c $CONF_DIR/sing-box.json
 Restart=on-failure
 RestartSec=3
 LimitNOFILE=1048576
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
 
 [Install]
 WantedBy=multi-user.target
@@ -811,6 +973,44 @@ open_firewall() {   # 仅当 ufw 已启用时放行端口
   ufw allow "$HOP_START:$HOP_END/udp" >/dev/null
 }
 
+# ───────────────────────── 时间同步 ─────────────────────────
+
+sync_time() {   # 安装完成后自动执行一次: vmess 要求客户端与服务器时间误差 < 2 分钟,证书校验也依赖正确的系统时间
+  [ "${SKIP_TIMESYNC:-0}" != "1" ] || return 0
+  log "同步系统时间"
+  local i st t method=""
+  if command -v chronyc >/dev/null 2>&1 && { systemctl is-active --quiet chrony || systemctl is-active --quiet chronyd; } 2>/dev/null; then
+    method="chrony"
+    chronyc -a makestep >/dev/null 2>&1 || chronyc makestep >/dev/null 2>&1 || true
+  elif systemctl cat systemd-timesyncd >/dev/null 2>&1; then
+    method="systemd-timesyncd"
+    systemctl enable --now systemd-timesyncd >/dev/null 2>&1 || true
+    timedatectl set-ntp true >/dev/null 2>&1 || true
+    systemctl restart systemd-timesyncd >/dev/null 2>&1 || true
+  elif command -v apt-get >/dev/null 2>&1; then
+    method="chrony (新安装)"
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq chrony >/dev/null 2>&1 \
+      || { warn "chrony 安装失败,已跳过时间同步"; return 0; }
+    systemctl enable --now chrony >/dev/null 2>&1 || true
+    sleep 2
+    chronyc -a makestep >/dev/null 2>&1 || true
+  else
+    warn "未找到时间同步服务,已跳过"
+    return 0
+  fi
+
+  for i in $(seq 1 "${TIMESYNC_WAIT:-10}"); do
+    st=$(timedatectl show -p NTPSynchronized --value 2>/dev/null || true)
+    t=$(chronyc tracking 2>/dev/null || true)
+    if [ "$st" = "yes" ] || [[ "$t" =~ Leap\ status[[:space:]]*:\ Normal ]]; then
+      log "时间已同步 ($method): $(date '+%F %T %Z')"
+      return 0
+    fi
+    sleep 2
+  done
+  warn "时间同步尚未确认 ($method)。稍后可检查: timedatectl 或 chronyc tracking (OpenVZ 等虚拟化不允许修改系统时间)"
+}
+
 # ───────────────────────── 节点链接 ─────────────────────────
 
 render_nodes() {
@@ -824,8 +1024,9 @@ render_nodes() {
     sb_note="# ── sing-box (正式证书 $DOMAIN,自动续签;地址用 IP,SNI 用域名) ──"
   else
     sb_note="# ── sing-box (自签证书: 客户端需开启\"允许不安全/跳过证书验证\",或使用指纹固定) ──"
+    # 说明: Xray 系链接 (xhttp-enc / ws-enc) 已用 pcs= 固定证书指纹;vmess-ws 链接无此字段,需在客户端手动固定指纹或开启允许不安全
     ins_tuic="&allow_insecure=1"; ins_any="&insecure=1"; ins_hy="&insecure=1"; pin_hy="&pinSHA256=$CERT_FP"
-    ins_tls="&allowInsecure=1"
+    ins_tls="&pcs=$(printf '%s' "$CERT_FP" | tr -d ':' | tr 'A-F' 'a-f')"
   fi
 
   cat > "$CONF_DIR/nodes.txt" <<EOF
@@ -856,6 +1057,8 @@ EOF
 
 do_install() {
   [ ! -f "$CONF_DIR/xray.json" ] || die "已安装。查看节点: pxy-install.sh info;重装请先 uninstall"
+  INSTALL_OK=0
+  trap '[ "$INSTALL_OK" = 1 ] || warn "安装未完成。排查原因后,请先执行 uninstall 清理,再重新安装"' EXIT
   collect_inputs
   install_deps
   detect_arch
@@ -868,7 +1071,7 @@ do_install() {
     preflight
     ensure_user
     cf_setup
-    issue_cert
+    provision_cert
   else
     gen_cert
   fi
@@ -883,6 +1086,8 @@ do_install() {
   fi
   render_nodes
   [ "$NO_SERVICE" -eq 1 ] || setup_system
+  [ "$NO_SERVICE" -eq 1 ] || sync_time
+  INSTALL_OK=1
 
   echo
   log "完成。节点链接 (同时保存在 $CONF_DIR/nodes.txt):"
@@ -893,13 +1098,14 @@ do_install() {
 注意:
   1. 云厂商面板如果有安全组/防火墙,需放行上面所有 TCP/UDP 端口,以及 UDP $HOP_START-$HOP_END$([ "$MODE" = selfsteal ] && echo ",TCP 80")。
   2. 查看日志: journalctl -u pxy-xray -f    journalctl -u pxy-singbox -f
-  2b. 第三方模式下 TLS 节点使用自签证书,客户端需开启"允许不安全"或使用证书指纹
+  2b. 第三方模式下 TLS 节点使用自签证书: Xray 系链接已带 pcs= 证书指纹;vmess-ws 需在客户端手动固定指纹或开启"允许不安全"
   3. 再次查看节点: bash pxy-install.sh info
 EOF
   if [ "$MODE" = "selfsteal" ]; then
     cat <<EOF
   4. 伪装 API 站点: https://$DOMAIN  (浏览器打开返回 JSON;/docs 是接口文档,/openapi.json 是接口描述)
-  5. 证书自动续签由 certbot.timer 负责,可用 certbot renew --dry-run 验证续签流程。
+  5. 证书自动续签由 certbot.timer 负责 (certbot renew --dry-run 可验证续签流程);随时检查并更新有效期: bash pxy-install.sh renew-cert。
+     卸载默认保留证书,重装时会直接复用,避免触发 Let's Encrypt 频率限制;要一并删除请加 --purge-cert。
   6. Cloudflare 上 $DOMAIN 的 A 记录必须保持"仅 DNS (灰云)",开启代理 (橙云) 会让 Reality 失效,并可能被他人当作转发节点。
 EOF
   fi
@@ -915,6 +1121,7 @@ do_info() {
   if [ -s "$CONF_DIR/cert.pem" ]; then
     printf '%-14s %s\n' "证书到期" "$(openssl x509 -in "$CONF_DIR/cert.pem" -noout -enddate | cut -d= -f2)"
   fi
+  printf '%-14s %s\n' "时间同步" "$(timedatectl show -p NTPSynchronized --value 2>/dev/null || echo unknown)"
   unit=$(systemctl is-active certbot.timer 2>/dev/null || true)
   [ "$unit" = "active" ] && printf '%-14s %s\n' "certbot.timer" "$unit"
   echo
@@ -930,6 +1137,22 @@ do_upgrade() {
   validate
   if [ "$NO_SERVICE" -eq 0 ]; then systemctl restart pxy-xray pxy-singbox; fi
   log "升级完成"
+}
+
+do_renew_cert() {   # 检查并更新本地证书有效期
+  [ -f "$CONF_DIR/ports.env" ] || die "未安装"
+  local MODE="" DOMAIN="" CERT_SOURCE="" CERT_FILE="" KEY_FILE=""
+  # shellcheck disable=SC1091
+  . "$CONF_DIR/ports.env"
+  [ "$MODE" = "selfsteal" ] || die "仅自偷域名模式使用正式证书,无需续签"
+  write_cert_hook
+  if [ "$CERT_SOURCE" = "external" ]; then
+    use_external_cert
+    reload_services
+  else
+    use_certbot_lineage || die "本地没有可用证书,或续签失败。请检查 Cloudflare Token / 网络,或重新安装"
+  fi
+  cert_summary
 }
 
 do_uninstall() {
@@ -954,8 +1177,17 @@ do_uninstall() {
     rm -f "$NGINX_CONF" "$HOOK_PATH" "$CF_INI"
     rm -rf "$SITE_DIR"
     systemctl reload nginx >/dev/null 2>&1 || true
-    if [ -n "$DOMAIN" ] && command -v certbot >/dev/null; then
-      certbot delete --non-interactive --cert-name "$DOMAIN" >/dev/null 2>&1 || true
+    if [ -n "$DOMAIN" ]; then
+      if [ "$PURGE_CERT" -eq 0 ] && [ "$ASSUME_YES" -eq 0 ] && have_tty; then
+        if confirm "同时删除 $DOMAIN 的 Let's Encrypt 证书? (保留可在重装时直接复用,避免触发频率限制)" n; then PURGE_CERT=1; fi
+      fi
+      if [ "$PURGE_CERT" -eq 1 ]; then
+        purge_lineage
+        log "已删除 $DOMAIN 的证书"
+      elif [ -f "$LE_DIR/renewal/$DOMAIN.conf" ]; then
+        mv "$LE_DIR/renewal/$DOMAIN.conf" "$LE_DIR/renewal/$DOMAIN.conf.pxy-saved"
+        log "已保留 $DOMAIN 的证书,重装时自动复用;已停用其自动续签,并删除保存的 Cloudflare Token"
+      fi
     fi
     warn "未删除 nginx/certbot 软件包,也未改动 Cloudflare 上的 DNS 记录"
   fi
@@ -971,8 +1203,9 @@ main() {
     case "$a" in
       --no-service) NO_SERVICE=1 ;;
       -y|--yes) ASSUME_YES=1 ;;
+      --purge-cert) PURGE_CERT=1 ;;
       -v|--version) echo "pxy-install.sh v$VERSION"; exit 0 ;;
-      install|info|upgrade|uninstall) CMD="$a" ;;
+      install|info|upgrade|uninstall|renew-cert) CMD="$a" ;;
       *) die "未知参数: $a" ;;
     esac
   done
@@ -985,6 +1218,7 @@ main() {
     info)      do_info ;;
     upgrade)   do_upgrade ;;
     uninstall) do_uninstall ;;
+    renew-cert) do_renew_cert ;;
   esac
 }
 
